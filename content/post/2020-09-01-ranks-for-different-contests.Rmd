@@ -1,0 +1,45 @@
+---
+title: Ranks for Different Contests
+author: Jake
+date: '2020-09-01'
+output:
+  blogdown::html_page:
+    toc: true
+    toc_depth: 1
+    number_sections: true
+    fig_width: 6
+slug: ranks-for-different-contests
+categories:
+  - BestBall
+  - NFL
+tags: []
+---
+
+
+
+## Quarterly Results {.tabset}
+
+### By Product
+
+(tab content)
+
+### By Region
+
+(tab content)
+
+
+hello dog
+
+
+
+##  one
+
+###  two
+
+
+# one  ------
+
+
+dog
+
+## one --- 

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Posts on A Hugo website</title>
+    <link>/post/</link>
+    <description>Recent content in Posts on A Hugo website</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Tue, 01 Sep 2020 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="/post/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Ranks for Different Contests</title>
+      <link>/2020/09/01/ranks-for-different-contests/</link>
+      <pubDate>Tue, 01 Sep 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/2020/09/01/ranks-for-different-contests/</guid>
+      <description>  1 one ——   0.1 Quarterly Results 0.1.1 By Product (tab content)
+ 0.1.2 By Region (tab content)
+hello dog
+  0.2 one 0.2.1 two   1 one —— dog
+1.1 one —   </description>
+    </item>
+    
+  </channel>
+</rss>

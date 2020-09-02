@@ -7,7 +7,6 @@ output:
     toc: true
     toc_depth: 1
     number_sections: true
-    fig_width: 6
 slug: ranks-for-different-contests
 categories:
   - BestBall
@@ -17,29 +16,70 @@ tags: []
 
 
 
-## Quarterly Results {.tabset}
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(echo = FALSE , cache = TRUE , warning = FALSE , message = FALSE ,
+                      dpi = 180 , fig.width = 8 , fig.height = 5)
 
-### By Product
+```
 
-(tab content)
+# Load libraries and data
 
-### By Region
+```{r}
+library(tidyverse)
+library(lubridate)
+library(plotly)
+library(tidyquant)
+library(scales)
+library(reactable)
 
-(tab content)
+options(scipen = 99999)
 
+```
 
-hello dog
-
-
-
-##  one
-
-###  two
-
-
-# one  ------
+##  Underdog Bestball Ownership Table
 
 
-dog
+#  Make reactive table
 
-## one --- 
+```{r }
+
+
+Underdog_Ownership <-   Underdog_Ownership <- read_csv("~/Desktop/BestBall/Data/2020/Underdog Ownership.csv")
+
+
+
+
+
+
+
+Underdog_Ownership <-   Underdog_Ownership   %>%  filter(`Draft Size`  > 11) %>%  mutate(Date = as_date(`Picked At`)   , Player = str_c(`First Name` , " " , `Last Name`)  ,
+      Entry_Fee =  case_when( `Draft Entry Fee` > 0 ~ `Draft Entry Fee` , TRUE ~ `Tournament Entry Fee`)   , temp_weight_adp = `Pick Number` * Entry_Fee)  %>%  
+  select(Date , Player, `Pick Number` , Entry_Fee  , Team, Position , `Draft Size`  , Draft  , temp_weight_adp)   %>%  
+  mutate( QB  = case_when( str_detect(Position , "QB" ) ~ 1 , TRUE ~0     ) ) %>%  group_by(Team, Draft) %>% 
+  mutate(Teammates =  n() , With_QB   = sum(QB) ) %>% ungroup()
+
+
+
+Underdog_Ownership_Team  <- Underdog_Ownership %>%  group_by(Team  , Draft ) %>%  
+  summarise(ADP = mean(`Pick Number`) , Times_Drafted = n() , Earliest = min(`Pick Number`)   , Latest = max(`Pick Number`)   , Range = Latest - Earliest  ,
+            Exposure = sum(Entry_Fee) / Times_Drafted ) %>%  ungroup() 
+
+
+totals <-   Underdog_Ownership %>%  # count(Draft , `Draft Entry Fee`)  %>%  
+  filter(Draft == "e1751e0a-47e1-451b-b7ee-188dc51d4428")
+
+Underdog_Ownership_Static  <- Underdog_Ownership %>%  group_by(Player , Position) %>%  
+  summarise ( ADP = mean(`Pick Number`) %>%  round(1) , Times_Drafted = n() , Earliest = min(`Pick Number`)   , Latest = max(`Pick Number`)   , Range = Latest - Earliest  ,
+            Exposure = sum(Entry_Fee)  ,   Average_Teamates = mean(Teammates)  %>%  round(1)  , With_QB_Rate = mean(With_QB) %>%  scales::percent()  ,
+            Weighted_ADP =  ( sum(temp_weight_adp )/  sum(Exposure  )) %>% round(1)) %>% 
+  ungroup()  %>%  select(    Exposure  , everything() )
+
+
+reactable(Underdog_Ownership_Static  ,filterable = TRUE  ,searchable = TRUE ,  style = list(fontFamily = "Work Sans, sans-serif", fontSize = "12px"),)
+
+
+totals <-   Underdog_Ownership %>%   count(Draft , Entry_Fee)
+
+```
+

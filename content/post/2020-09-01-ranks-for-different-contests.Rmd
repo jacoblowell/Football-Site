@@ -71,15 +71,19 @@ totals <-   Underdog_Ownership %>%  # count(Draft , `Draft Entry Fee`)  %>%
 
 Underdog_Ownership_Static  <- Underdog_Ownership %>%  group_by(Player , Position) %>%  
   summarise ( ADP = mean(`Pick Number`) %>%  round(1) , Times_Drafted = n() , Earliest = min(`Pick Number`)   , Latest = max(`Pick Number`)   , Range = Latest - Earliest  ,
-            Exposure = sum(Entry_Fee)  ,   Average_Teamates = mean(Teammates)  %>%  round(1)  , With_QB_Rate = mean(With_QB) %>%  scales::percent()  ,
-            Weighted_ADP =  ( sum(temp_weight_adp )/  sum(Exposure  )) %>% round(1)) %>% 
-  ungroup()  %>%  select(    Exposure  , everything() )
+            Exposure = sum(Entry_Fee)  ,   Avg_Teamates = mean(Teammates)  %>%  round(1)  , With_QB_Rate1  = mean(With_QB)  , With_QB_Rate = as.factor(scales::percent(With_QB_Rate1))   , Weighted_ADP =  ( sum(temp_weight_adp )/  sum(Exposure  )) %>% round(1))%>% 
+  ungroup()  %>%  select(  - Earliest , - Latest , -ADP )  %>%  mutate( Exposure_num = Exposure  ,Exposure = as.factor(scales::dollar(Exposure) )) %>% 
+  mutate(Exposure = fct_reorder(Exposure , Exposure_num)    , With_QB_Rate = fct_reorder(With_QB_Rate, With_QB_Rate1)) %>% select(-Exposure_num  , - With_QB_Rate1 ) # Exposure_num was used to sort factor
 
 
-reactable(Underdog_Ownership_Static  ,filterable = TRUE  ,searchable = TRUE ,  style = list(fontFamily = "Work Sans, sans-serif", fontSize = "12px"),)
+reactable(Underdog_Ownership_Static  ,filterable = TRUE  ,searchable = TRUE ,  style = list(fontFamily = "Work Sans, sans-serif", fontSize = "12px"),fullWidth = TRUE,
+  width = "auto") 
 
 
 totals <-   Underdog_Ownership %>%   count(Draft , Entry_Fee)
 
 ```
+
+
+
 

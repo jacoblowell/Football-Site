@@ -61,9 +61,9 @@ Underdog_Ownership <-   Underdog_Ownership   %>%  filter(`Draft Size`  > 11) %>%
 
 
 
-Underdog_Ownership_Team  <- Underdog_Ownership %>%  group_by(Team  , Draft ) %>%  
+Underdog_Ownership_Team  <- Underdog_Ownership %>%  group_by(Team   ) %>%  
   summarise(ADP = mean(`Pick Number`) , Times_Drafted = n() , Earliest = min(`Pick Number`)   , Latest = max(`Pick Number`)   , Range = Latest - Earliest  ,
-            Exposure = sum(Entry_Fee) / Times_Drafted ) %>%  ungroup() 
+            Exposure = sum(Entry_Fee) )%>%  ungroup() 
 
 
 totals <-   Underdog_Ownership %>%  # count(Draft , `Draft Entry Fee`)  %>%  
@@ -85,5 +85,12 @@ totals <-   Underdog_Ownership %>%   count(Draft , Entry_Fee)
 ```
 
 
+
+
+# Quarterback table
+
+```{r}
+
+```
 
 

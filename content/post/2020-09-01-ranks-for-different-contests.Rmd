@@ -76,9 +76,6 @@ Underdog_Ownership_Static  <- Underdog_Ownership %>%  group_by(Player , Position
   mutate(Exposure = fct_reorder(Exposure , Exposure_num)    , With_QB_Rate = fct_reorder(With_QB_Rate, With_QB_Rate1)) %>% select(-Exposure_num  , - With_QB_Rate1 ) # Exposure_num was used to sort factor
 
 
-reactable(Underdog_Ownership_Static  ,filterable = TRUE  ,searchable = TRUE ,  style = list(fontFamily = "Work Sans, sans-serif", fontSize = "12px"),fullWidth = TRUE,
-  width = "auto") 
-
 
 totals <-   Underdog_Ownership %>%   count(Draft , Entry_Fee)
 
@@ -86,10 +83,62 @@ totals <-   Underdog_Ownership %>%   count(Draft , Entry_Fee)
 
 
 
+####
 
-# Quarterback table
+With teams
+
+
+
+## My Underdog Ownership
 
 ```{r}
+
+Underdog_Ownership_Static  <- Underdog_Ownership %>%  group_by(Team, Position, Player)  %>%  
+  summarise ( ADP = mean(`Pick Number`) %>%  round(1) , Times_Drafted = n() , Earliest = min(`Pick Number`)   , Latest = max(`Pick Number`)   , Range = Latest - Earliest  ,
+            Exposure = sum(Entry_Fee)  ,   Avg_Teamates = (mean(Teammates) - 1 ) %>%  round(1)  , With_QB_Rate  = mean(With_QB) %>%  round(1)     , Weighted_ADP =  ( sum(temp_weight_adp )/  sum(Exposure  )) %>% round(1))%>% 
+  ungroup()  %>%  select(  - Earliest , - Latest , -ADP ) 
+
+
+
+Underdog_Ownership_Static %>%  relocate(Range, .after = last_col()) %>%  select(-Times_Drafted) %>%   reactable( columns = list(
+ Team= colDef(minWidth = 50)  ,
+ Position = colDef(minWidth = 60)  ,
+Exposure = colDef(minWidth = 75 , format = colFormat(
+  prefix = "$",
+  separators = TRUE,
+  digits = 0)),
+With_QB_Rate =   colDef(format = colFormat(percent = TRUE, digits = 0)) 
+#, Weighted_ADP =   colDef( ) ,
+#Avg_Teamates =   colDef( )
+,Range = colDef(minWidth = 50)  
+)  ,filterable = TRUE  ,#searchable = TRUE ,  
+style = list(fontFamily = "Work Sans, sans-serif", fontSize = "12px"),fullWidth = TRUE,
+  width = "auto"  #, defaultPageSize = 12
+)
+```
+
+
+
+
+# Quarterback Exposure
+
+```{r}
+
+
+Underdog_Ownership_Static %>% filter(Position == "QB")  %>%  relocate(Range, .after = last_col()) %>%  select(-Times_Drafted , -Position , -With_QB_Rate) %>%   reactable( columns = list(
+ Team = colDef(minWidth = 50)  ,
+Exposure = colDef(minWidth = 75 , format = colFormat(
+  prefix = "$",
+  separators = TRUE,
+  digits = 0)),
+#, Weighted_ADP =   colDef( ) ,
+#Avg_Teamates =   colDef( )
+Range = colDef(minWidth = 50)  
+)  ,
+style = list(fontFamily = "Work Sans, sans-serif", fontSize = "12px"),fullWidth = TRUE,
+  width = "auto"   , defaultPageSize = 30
+)
+
 
 ```
 

@@ -23,7 +23,6 @@ knitr::opts_chunk$set(echo = FALSE , cache = TRUE , warning = FALSE , message = 
 
 ```
 
-# Load libraries and data
 
 ```{r}
 library(tidyverse)
@@ -40,16 +39,21 @@ options(scipen = 99999)
 ##  Underdog Bestball Ownership Table
 
 
-#  Make reactive table
 
-```{r }
 
+## My Underdog Ownership
+
+
+
+
+
+
+
+```{r}
+
+library(crosstalk)
 
 Underdog_Ownership <-   Underdog_Ownership <- read_csv("~/Desktop/BestBall/Data/2020/Underdog Ownership.csv")
-
-
-
-
 
 
 
@@ -59,49 +63,17 @@ Underdog_Ownership <-   Underdog_Ownership   %>%  filter(`Draft Size`  > 11) %>%
   mutate( QB  = case_when( str_detect(Position , "QB" ) ~ 1 , TRUE ~0     ) ) %>%  group_by(Team, Draft) %>% 
   mutate(Teammates =  n() , With_QB   = sum(QB) ) %>% ungroup()
 
-
-
-Underdog_Ownership_Team  <- Underdog_Ownership %>%  group_by(Team   ) %>%  
-  summarise(ADP = mean(`Pick Number`) , Times_Drafted = n() , Earliest = min(`Pick Number`)   , Latest = max(`Pick Number`)   , Range = Latest - Earliest  ,
-            Exposure = sum(Entry_Fee) )%>%  ungroup() 
-
-
-totals <-   Underdog_Ownership %>%  # count(Draft , `Draft Entry Fee`)  %>%  
-  filter(Draft == "e1751e0a-47e1-451b-b7ee-188dc51d4428")
-
-Underdog_Ownership_Static  <- Underdog_Ownership %>%  group_by(Player , Position) %>%  
-  summarise ( ADP = mean(`Pick Number`) %>%  round(1) , Times_Drafted = n() , Earliest = min(`Pick Number`)   , Latest = max(`Pick Number`)   , Range = Latest - Earliest  ,
-            Exposure = sum(Entry_Fee)  ,   Avg_Teamates = mean(Teammates)  %>%  round(1)  , With_QB_Rate1  = mean(With_QB)  , With_QB_Rate = as.factor(scales::percent(With_QB_Rate1))   , Weighted_ADP =  ( sum(temp_weight_adp )/  sum(Exposure  )) %>% round(1))%>% 
-  ungroup()  %>%  select(  - Earliest , - Latest , -ADP )  %>%  mutate( Exposure_num = Exposure  ,Exposure = as.factor(scales::dollar(Exposure) )) %>% 
-  mutate(Exposure = fct_reorder(Exposure , Exposure_num)    , With_QB_Rate = fct_reorder(With_QB_Rate, With_QB_Rate1)) %>% select(-Exposure_num  , - With_QB_Rate1 ) # Exposure_num was used to sort factor
-
-
-
-totals <-   Underdog_Ownership %>%   count(Draft , Entry_Fee)
-
-```
-
-
-
-####
-
-With teams
-
-
-
-## My Underdog Ownership
-
-```{r}
-
 Underdog_Ownership_Static  <- Underdog_Ownership %>%  group_by(Team, Position, Player)  %>%  
   summarise ( ADP = mean(`Pick Number`) %>%  round(1) , Times_Drafted = n() , Earliest = min(`Pick Number`)   , Latest = max(`Pick Number`)   , Range = Latest - Earliest  ,
             Exposure = sum(Entry_Fee)  ,   Avg_Teamates = (mean(Teammates) - 1 ) %>%  round(1)  , With_QB_Rate  = mean(With_QB) %>%  round(1)     , Weighted_ADP =  ( sum(temp_weight_adp )/  sum(Exposure  )) %>% round(1))%>% 
-  ungroup()  %>%  select(  - Earliest , - Latest , -ADP ) 
+  ungroup()  %>%  select(  - Earliest , - Latest , -ADP  )  %>%  relocate(Range, .after = last_col()) %>%  select(-Times_Drafted , - Range)
 
 
+underdog_shared <- SharedData$new(Underdog_Ownership_Static)
 
-Underdog_Ownership_Static %>%  relocate(Range, .after = last_col()) %>%  select(-Times_Drafted) %>%   reactable( columns = list(
- Team= colDef(minWidth = 50)  ,
+
+Ownership_table  <- underdog_shared   %>%   reactable( columns = list(
+ Team = colDef(minWidth = 50)  ,
  Position = colDef(minWidth = 60)  ,
 Exposure = colDef(minWidth = 75 , format = colFormat(
   prefix = "$",
@@ -110,12 +82,89 @@ Exposure = colDef(minWidth = 75 , format = colFormat(
 With_QB_Rate =   colDef(format = colFormat(percent = TRUE, digits = 0)) 
 #, Weighted_ADP =   colDef( ) ,
 #Avg_Teamates =   colDef( )
-,Range = colDef(minWidth = 50)  
-)  ,filterable = TRUE  ,#searchable = TRUE ,  
+#,Range = colDef(minWidth = 50)  
+)  ,#filterable = TRUE  ,#searchable = TRUE ,  
 style = list(fontFamily = "Work Sans, sans-serif", fontSize = "12px"),fullWidth = TRUE,
   width = "auto"  #, defaultPageSize = 12
 )
+
+
+
+
+# bootstrap columns
+library(htmltools)
+
+
+div(
+h3("Ownership Table with Filtering") ,
+
+bscols(
+  # bootstrap is built off a 12 wide grid system,
+  # so we have 1/6 and 5/6 width below
+  widths = c(1, 6,6),
+  list(
+    # Create shiny-esque filters
+    # Note that we are defining:
+    # a name for the filter
+    # a display name for the filter
+    # a shared data object
+    # and a column of interest (w/ a ~)
+    filter_select("position", "Position", underdog_shared, ~Position),
+    #filter_slider("exposure", "Exposure", underdog_shared  , ~Exposure,  width = "100%"),
+    #filter_slider("weighted ADP", "Weighted_ADP", underdog_shared, ~Weighted_ADP, width = "100%"),
+    filter_select("team", "Team", underdog_shared, ~Team)
+  ),
+  # add our table next to the filters
+Ownership_table  ,
+
+ggplotly(underdog_shared %>%  ggplot(aes(x = Weighted_ADP, y = Exposure  ,color = Position , label = Player)) +
+     geom_point(aes(text = str_glue("Player: {Player}")   ) , size = 0.8)+ 
+  theme_tq() + scale_color_tq() +
+      geom_text(check_overlap = TRUE , size = 2 , nudge_y = 1) + theme(legend.position="none")  ) 
+
+))
 ```
+
+
+
+
+
+
+
+```{r}
+
+div(
+h3("Ownership Table with Filtering") ,
+
+bscols(
+  # bootstrap is built off a 12 wide grid system,
+  # so we have 1/6 and 5/6 width below
+  widths = c(1.5,5.25,5.25),
+  list(
+    # Create shiny-esque filters
+    # Note that we are defining:
+    # a name for the filter
+    # a display name for the filter
+    # a shared data object
+    # and a column of interest (w/ a ~)
+    filter_select("position", "Position", underdog_shared, ~Position),
+    #filter_slider("exposure", "Exposure", underdog_shared  , ~Exposure,  width = "100%"),
+    #filter_slider("weighted ADP", "Weighted_ADP", underdog_shared, ~Weighted_ADP, width = "100%"),
+    filter_select("team", "Team", underdog_shared, ~Team)
+  ),
+  # add our table next to the filters
+Ownership_table  ,
+
+ggplotly(underdog_shared %>%  ggplot(aes(x = Weighted_ADP, y = Exposure  ,color = Position , label = Player)) +
+     geom_point(aes(text = str_glue("Player: {Player}")   ) , size = 0.8)+ 
+  theme_tq() + scale_color_tq() +
+      geom_text(check_overlap = TRUE , size = 2 , nudge_y = 1) + theme(legend.position="none")  ) 
+
+))
+
+
+```
+
 
 
 
@@ -125,15 +174,12 @@ style = list(fontFamily = "Work Sans, sans-serif", fontSize = "12px"),fullWidth 
 ```{r}
 
 
-Underdog_Ownership_Static %>% filter(Position == "QB")  %>%  relocate(Range, .after = last_col()) %>%  select(-Times_Drafted , -Position , -With_QB_Rate) %>%   reactable( columns = list(
+Underdog_Ownership_Static %>% filter(Position == "QB")  %>%    select( -Position , -With_QB_Rate) %>%   reactable( columns = list(
  Team = colDef(minWidth = 50)  ,
 Exposure = colDef(minWidth = 75 , format = colFormat(
   prefix = "$",
   separators = TRUE,
-  digits = 0)),
-#, Weighted_ADP =   colDef( ) ,
-#Avg_Teamates =   colDef( )
-Range = colDef(minWidth = 50)  
+  digits = 0))
 )  ,
 style = list(fontFamily = "Work Sans, sans-serif", fontSize = "12px"),fullWidth = TRUE,
   width = "auto"   , defaultPageSize = 30
@@ -141,5 +187,11 @@ style = list(fontFamily = "Work Sans, sans-serif", fontSize = "12px"),fullWidth 
 
 
 ```
+
+
+
+
+
+
 
 

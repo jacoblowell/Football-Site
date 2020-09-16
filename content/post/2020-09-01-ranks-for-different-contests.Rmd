@@ -95,43 +95,6 @@ style = list(fontFamily = "Work Sans, sans-serif", fontSize = "12px"),fullWidth 
 library(htmltools)
 
 
-div(
-h3("Ownership Table with Filtering") ,
-
-bscols(
-  # bootstrap is built off a 12 wide grid system,
-  # so we have 1/6 and 5/6 width below
-  widths = c(1, 6,6),
-  list(
-    # Create shiny-esque filters
-    # Note that we are defining:
-    # a name for the filter
-    # a display name for the filter
-    # a shared data object
-    # and a column of interest (w/ a ~)
-    filter_select("position", "Position", underdog_shared, ~Position),
-    #filter_slider("exposure", "Exposure", underdog_shared  , ~Exposure,  width = "100%"),
-    #filter_slider("weighted ADP", "Weighted_ADP", underdog_shared, ~Weighted_ADP, width = "100%"),
-    filter_select("team", "Team", underdog_shared, ~Team)
-  ),
-  # add our table next to the filters
-Ownership_table  ,
-
-ggplotly(underdog_shared %>%  ggplot(aes(x = Weighted_ADP, y = Exposure  ,color = Position , label = Player)) +
-     geom_point(aes(text = str_glue("Player: {Player}")   ) , size = 0.8)+ 
-  theme_tq() + scale_color_tq() +
-      geom_text(check_overlap = TRUE , size = 2 , nudge_y = 1) + theme(legend.position="none")  ) 
-
-))
-```
-
-
-
-
-
-
-
-```{r}
 
 div(
 h3("Ownership Table with Filtering") ,
@@ -156,14 +119,16 @@ bscols(
 Ownership_table  ,
 
 ggplotly(underdog_shared %>%  ggplot(aes(x = Weighted_ADP, y = Exposure  ,color = Position , label = Player)) +
-     geom_point(aes(text = str_glue("Player: {Player}")   ) , size = 0.8)+ 
+     geom_point(aes(text = str_glue("Player: {Player}")   ) , size = 0.1)+ 
   theme_tq() + scale_color_tq() +
-      geom_text(check_overlap = TRUE , size = 2 , nudge_y = 1) + theme(legend.position="none")  ) 
+      geom_text(check_overlap = TRUE , size = 3 , nudge_y = 1) + theme(legend.position="none")  ) 
 
 ))
 
-
 ```
+
+
+
 
 
 

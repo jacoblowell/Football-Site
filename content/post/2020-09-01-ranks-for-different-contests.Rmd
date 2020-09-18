@@ -128,7 +128,7 @@ ggplotly(underdog_shared %>%  ggplot(aes(x = Weighted_ADP, y = Exposure  ,color 
 ```{r}
 
 Underdog_Ownership  <- Underdog_Ownership %>% mutate(Teammates = Teammates -1) %>% 
-  mutate(  Stacked = ifelse( QB * Teammates   > 0.5  |  With_QB > 0.5 , 1 ,0)) %>%  mutate(Stacked = as.factor(Stacked))
+  mutate(  Stacked = ifelse( QB * Teammates   > 0.5  |  ((-QB)  * With_QB) > 0.5 , 1 ,0)) %>%  mutate(Stacked = as.factor(Stacked))
 
 underdog_picks_shared <- SharedData$new(Underdog_Ownership)
 

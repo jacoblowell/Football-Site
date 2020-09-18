@@ -36,15 +36,6 @@ options(scipen = 99999)
 
 ```
 
-##  Underdog Bestball Ownership Table
-
-
-
-
-## My Underdog Ownership
-
-
-
 
 
 
@@ -130,44 +121,14 @@ ggplotly(underdog_shared %>%  ggplot(aes(x = Weighted_ADP, y = Exposure  ,color 
 
 
 
-# with slider
-
-```{r}
-div(
-h3("Ownership Table with Filtering") ,
-
-bscols(
-  # bootstrap is built off a 12 wide grid system,
-  # so we have 1/6 and 5/6 width below
-  widths = c(1.5,5.25,5.25),
-  list(
-
-  
-  
-  # add our table next to the filters
-Ownership_table  ,
-
-#####3
-
-
-######
-
-ggplotly(underdog_shared %>%  ggplot(aes(x = Weighted_ADP, y = Exposure  ,color = Position , label = Player)) +
-     geom_point(aes(text = str_glue("Player: {Player}")   ) , size = 0.1)+ 
-  theme_tq() + scale_color_tq() +
-      geom_text(check_overlap = TRUE , size = 3 , nudge_y = 1) + theme(legend.position="none")  )  ,
-
-  filter_select("team", "Team", underdog_shared, ~Team , multiple =  FALSE)
-
-))  )
-```
-
 
 
 
 
 ```{r}
 
+Underdog_Ownership  <- Underdog_Ownership %>% mutate(Teammates = Teammates -1) %>% 
+  mutate(  Stacked = ifelse( QB * Teammates   > 0.5  |  With_QB > 0.5 , 1 ,0)) %>%  mutate(Stacked = as.factor(Stacked))
 
 underdog_picks_shared <- SharedData$new(Underdog_Ownership)
 
@@ -179,64 +140,42 @@ bscols(
   # so we have 1/6 and 5/6 width below
   widths = c(1.5,5.25,5.25),
   list(
-   
-   # filter_select("position", "Position", underdog_picks_shared, ~Position),
- 
-    filter_select("team", "Team", underdog_picks_shared, ~Team , multiple = FALSE)
-  ),
 ######
 ggplotly(    
-underdog_picks_shared  %>%  ggplot(aes( x = Date  , y = `Pick Number`  , color = `With QB`  , shape = `With QB`, label = Player)) +  
+underdog_picks_shared  %>%  ggplot(aes( x = Date  , y = `Pick Number`  , color = Stacked  , shape = Stacked, label = Player)) +  
      geom_point(aes(text = str_glue("Player: {Player}")   ) , size = 2)+ 
   theme_tq() + scale_color_tq() +
       geom_text(check_overlap = TRUE , size = 2 , nudge_y = 8) + theme(legend.position="none") +
   labs(title = "Underdog draft picks over time"  , caption = "Source: Underdog.com")
-)
+)  ,  filter_select("team", "Team", underdog_picks_shared, ~Team , multiple = FALSE))
 ))
 
 ```
-
-
 
 
 
 
 
 ```{r}
+stack <- Underdog_Ownership %>% mutate(Teammates = Teammates -1) %>% 
+  mutate( Stack =  Teammates * QB  , Stacked = ifelse(QB * Teammates  > 0.5 , 1 ,0)) %>%  group_by(Draft) %>%  summarise(Stacks = sum(Stacked)  , Stacked_players = sum(Stack)) %>% 
+  ungroup()
+  
+stack %>% ggplot(aes(x= Stacks)) + geom_histogram()
 
-Underdog_Ownership2  <- Underdog_Ownership %>%  mutate(Team2 = as.factor(Team)) %>%  mutate(Team2 = as.numeric(Team2))
 
-underdog_picks_shared <- SharedData$new(Underdog_Ownership2)
-
-div(
+stack %>% ggplot(aes(x= Stacked_players , fill= as.factor(Stacks))) + geom_histogram() + labs(title = "Underdog Stacking")
 
 
-bscols(
-  # bootstrap is built off a 12 wide grid system,
-  # so we have 1/6 and 5/6 width below
-  widths = c(1.5,5.25,5.25),
-  list(
-   
-    
-    ggplotly(    
-underdog_picks_shared  %>%  ggplot(aes( x = Date  , y = `Pick Number`  , color = `With QB`  , shape = `With QB`, label = Player)) +  
-     geom_point(aes(text = str_glue("Player: {Player}")   ) , size = 2)+ 
-  theme_tq() + scale_color_tq() +
-      geom_text(check_overlap = TRUE , size = 2 , nudge_y = 8) + theme(legend.position="none") +
-  labs(title = "Underdog draft picks over time"  , caption = "Source: Underdog.com")
-) ,
-   # filter_select("position", "Position", underdog_picks_shared, ~Position),
- 
-    filter_slider("team", "Team", underdog_picks_shared, ~Team2  )
-  )
-######
+stack %>% ggplot(aes(x= Stacked_players , fill= as.factor(Stacks))) + geom_histogram() + facet_wrap(~Stacks) + 
+  labs(title = "Stacked Players by number of stacks") + theme(legend.position="none")  
 
-))
 
 ```
 
 
-# Quarterback Exposure
+
+
 
 ```{r}
 
@@ -259,21 +198,9 @@ style = list(fontFamily = "Work Sans, sans-serif", fontSize = "12px"),fullWidth 
 
 
 
+### If qb
 
 
 
 
 
-
-
-
-
-
-
-```{r}
-Underdog_Ownership%>%  ggplot(aes( x = Date  , y = `Pick Number`  , color = `With QB`  , shape = `With QB`, label = Player)) +  
-     geom_point(aes(text = str_glue("Player: {Player}")   ) , size = 2)+ 
-  theme_tq() + scale_color_tq() +
-      geom_label(check_overlap = TRUE , size = 2 , nudge_y = 8) + #theme(legend.position="none") +
-  labs(title = "Underdog draft picks over time"  , caption = "Source: Underdog.com")
-```

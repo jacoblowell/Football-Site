@@ -157,17 +157,20 @@ underdog_picks_shared  %>%  ggplot(aes( x = Date  , y = `Pick Number`  , color =
 
 
 ```{r}
-stack <- Underdog_Ownership %>% mutate(Teammates = Teammates -1) %>% 
+stack <- Underdog_Ownership %>% #mutate(Teammates = Teammates -1) %>% 
   mutate( Stack =  Teammates * QB  , Stacked = ifelse(QB * Teammates  > 0.5 , 1 ,0)) %>%  group_by(Draft) %>%  summarise(Stacks = sum(Stacked)  , Stacked_players = sum(Stack)) %>% 
-  ungroup()
+  ungroup() %>%  mutate(`Stacks on team` = as.factor(Stacks)   , `Stacked Players` = as.factor(Stacked_players))
   
 stack %>% ggplot(aes(x= Stacks)) + geom_histogram()
 
 
-stack %>% ggplot(aes(x= Stacked_players , fill= as.factor(Stacks))) + geom_histogram() + labs(title = "Underdog Stacking")
+stack %>% ggplot(aes(x= Stacked_players , fill= `Stacks on team`)) + geom_histogram() + labs(title = "Underdog Stacking") + theme_tq() + scale_color_tq()
 
 
-stack %>% ggplot(aes(x= Stacked_players , fill= as.factor(Stacks))) + geom_histogram() + facet_wrap(~Stacks) + 
+stack %>% ggplot(aes(x= Stacks , fill= `Stacked Players`)) + geom_histogram() + labs(title = "Underdog Stacking") + theme_tq() + scale_color_tq()
+
+
+stack %>% ggplot(aes(x= Stacked_players , fill= `Stacks on team`)) + geom_histogram() + facet_wrap(~Stacks) + 
   labs(title = "Stacked Players by number of stacks") + theme(legend.position="none")  
 
 
@@ -202,5 +205,42 @@ style = list(fontFamily = "Work Sans, sans-serif", fontSize = "12px"),fullWidth 
 
 
 
+#
+
+
+team
+
+```{r}
+ Underdog_Ownership_Team  <- Underdog_Ownership %>%  group_by(Team  , Draft ) %>%   
+   summarise(ADP = mean(`Pick Number`) , Times_Drafted = n() , Earliest = min(`Pick Number`)   , Latest = max(`Pick Number`)   , Range = Latest - Earliest  , 
+            Exposure = sum(Entry_Fee) / Times_Drafted ) %>%  ungroup()  
+```
+
+
+
+```{r}
+Team <-  Underdog_Ownership %>% filter(Position =="QB") %>% group_by(Player, Stacked) %>%  
+  summarise(Exposure = sum(Entry_Fee)) %>% # ungroup() %>% 
+  ggplot(aes(x = Exposure , y = reorder(Player,  Exposure ), fill = Stacked)) + geom_col() + theme_tq() + 
+  scale_color_tq() + labs(title = "Underdog QB Exposure"  , y = "Quarterback")   + scale_x_continuous(labels = dollar)
+
+Team
+```
+
+
+
+
+
+
+
+
+```{r}
+Rankings_2016 <- read_csv("~/Desktop/BestBall/Data/Fantasy_Pros_Ranks/FantasyPros_2016_Draft_Overall_Rankings.csv") %>%  mutate(Season = 2016)
+Rankings_2017 <- read_csv("~/Desktop/BestBall/Data/Fantasy_Pros_Ranks/FantasyPros_2017_Draft_Overall_Rankings.csv") %>%  mutate(Season = 2017)
+Rankings_2018 <- read_csv("~/Desktop/BestBall/Data/Fantasy_Pros_Ranks/FantasyPros_2018_Draft_Overall_Rankings.csv") %>%  mutate(Season = 2018)
+Rankings_2019 <- read_csv("~/Desktop/BestBall/Data/Fantasy_Pros_Ranks/FantasyPros_2019_Draft_Overall_Rankings.csv") %>%  mutate(Season = 2019)
+Rankings_2020 <- read_csv("~/Desktop/BestBall/Data/Fantasy_Pros_Ranks/FantasyPros_2019_Draft_Overall_Rankings.csv") %>%  mutate(Season = 2020)
+
+```
 
 

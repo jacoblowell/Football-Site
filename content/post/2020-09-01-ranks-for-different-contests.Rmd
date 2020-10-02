@@ -18,7 +18,7 @@ tags: []
 
 ```{r setup, include=FALSE}
 library(knitr)
-knitr::opts_chunk$set(echo = FALSE , cache = TRUE , warning = FALSE , message = FALSE #, dpi = 180 , fig.width = 8 , fig.height = 5
+knitr::opts_chunk$set(echo = TRUE , cache = TRUE , warning = FALSE , message = FALSE #, dpi = 180 , fig.width = 8 , fig.height = 5
                       )
 
 ```
@@ -48,11 +48,16 @@ Underdog_Ownership <-   Underdog_Ownership <- read_csv("~/Desktop/BestBall/Data/
 
 
 
-Underdog_Ownership <-   Underdog_Ownership   %>%  filter(`Draft Size`  > 11) %>%  mutate(Date = as_date(`Picked At`)   , Player = str_c(`First Name` , " " , `Last Name`)  ,
+Underdog_Ownership <-   Underdog_Ownership  %>%  
+  filter(`Draft Size`  > 11) %>%  mutate(Date = as_date(`Picked At`)   , Player = str_c(`First Name` , " " , `Last Name`)  ,
       Entry_Fee =  case_when( `Draft Entry Fee` > 0 ~ `Draft Entry Fee` , TRUE ~ `Tournament Entry Fee`)   , temp_weight_adp = `Pick Number` * Entry_Fee)  %>%  
+  mutate(Player = case_when(Player == "Christopher Herndon" ~ "Chris Herndon" , TRUE ~ Player)) %>% 
   select(Date , Player, `Pick Number` , Entry_Fee  , Team, Position , `Draft Size`  , Draft  , temp_weight_adp)   %>%  
   mutate( QB  = case_when( str_detect(Position , "QB" ) ~ 1 , TRUE ~0     ) ) %>%  group_by(Team, Draft) %>% 
-  mutate(Teammates =  n() , With_QB   = sum(QB) ) %>% ungroup() %>%  mutate(`With QB` = ifelse(With_QB > 0 ,"Yes","No") )
+  mutate(Teammates =  n() , With_QB   = sum(QB) ) %>% ungroup() %>%  mutate(`With QB` = ifelse(With_QB > 0 ,"Yes","No") ) %>%  mutate(
+    pj = Player %>% str_replace_all("[^[:alnum:]]", " ")     %>% str_replace_all("[ ]+", "") %>%
+      str_replace_all("(-)|(Jr)|(III)|(II)|(IV)|(V)", "") %>% str_trim() %>%  str_to_lower())
+    
 
 Underdog_Ownership_Static  <- Underdog_Ownership %>%  group_by(Team, Position, Player)  %>%  
   summarise ( ADP = mean(`Pick Number`) %>%  round(1) , Times_Drafted = n() , Earliest = min(`Pick Number`)   , Latest = max(`Pick Number`)   , Range = Latest - Earliest  ,
@@ -117,8 +122,615 @@ ggplotly(underdog_shared %>%  ggplot(aes(x = Weighted_ADP, y = Exposure  ,color 
 
 ```
 
+###########points
+
+```{r}
+
+# Bring in Weekly scoring data
+
+week1_2020 <-
+  read_csv(
+    "~/Desktop/BestBall/Data/Weekly_1_16/2020/NFLstats_FantasyScoring_202001-202001.csv",
+    col_types = cols(
+      FFPC = col_skip(),
+      GMs = col_skip(),
+      PPR = col_skip(),
+      SIXPT = col_skip(),
+      STD = col_skip()
+    )
+  )   %>%  mutate(
+    pj = Player %>% str_replace_all("[^[:alnum:]]", " ")     %>% str_replace_all("[ ]+", "") %>%  str_replace_all("(-)|(Jr)|(III)|(II)|(IV)|(V)", "") %>% str_trim() %>%  str_to_lower()
+  )  %>%   mutate(Week = 1) %>%  select(-Player , -Team , -Pos)
 
 
+
+week2_2020 <-
+  read_csv(
+    "~/Desktop/BestBall/Data/Weekly_1_16/2020/NFLstats_FantasyScoring_202002-202002.csv",
+    col_types = cols(
+      FFPC = col_skip(),
+      GMs = col_skip(),
+      PPR = col_skip(),
+      SIXPT = col_skip(),
+      STD = col_skip()
+    )
+  )   %>%  mutate(
+    pj = Player %>% str_replace_all("[^[:alnum:]]", " ")     %>% str_replace_all("[ ]+", "") %>%  str_replace_all("(-)|(Jr)|(III)|(II)|(IV)|(V)", "") %>% str_trim() %>%  str_to_lower()
+  ) %>%  mutate(Week = 2) %>%  select(-Player , -Team , -Pos)
+
+
+
+week3_2020 <-
+  read_csv(
+    "~/Desktop/BestBall/Data/Weekly_1_16/2020/NFLstats_FantasyScoring_202003-202003.csv",
+    col_types = cols(
+      FFPC = col_skip(),
+      GMs = col_skip(),
+      PPR = col_skip(),
+      SIXPT = col_skip(),
+      STD = col_skip()
+    )
+  )   %>%  mutate(
+    pj = Player %>% str_replace_all("[^[:alnum:]]", " ")     %>% str_replace_all("[ ]+", "") %>%  str_replace_all("(-)|(Jr)|(III)|(II)|(IV)|(V)", "") %>% str_trim() %>%  str_to_lower()
+  )  %>%  mutate(Week = 3) %>%  select(-Player , -Team , -Pos)
+
+
+
+tog <- Underdog_Ownership %>%  left_join(week1_2020 , by =  "pj") %>%  mutate(Week = 1) %>% mutate_if(is.numeric , ~replace(., is.na(.), 0)) %>% select(-pj)
+
+
+tog2  <-   Underdog_Ownership  %>%  left_join(week2_2020 , by =  "pj") %>%  mutate(Week = 2)  %>% mutate_if(is.numeric , ~replace(., is.na(.), 0)) %>% select(-pj)
+
+
+tog3  <-   Underdog_Ownership %>%  left_join(week3_2020 , by =  "pj") %>%  mutate(Week = 3) %>% mutate_if(is.numeric , ~replace(., is.na(.), 0)) %>% select(-pj)
+
+track <- tog %>% bind_rows(tog2) %>%  bind_rows(tog3) 
+
+  
+# calculate weekly score for teams 
+
+
+Scores <- track %>%  group_by(Draft  , Week,Position) %>% mutate(Pos_rank = min_rank(-DK)) %>% ungroup() %>% group_by(Draft  ,  Week) %>% 
+  mutate(Flex_Score = case_when(Position== "QB"  ~ 0 ,
+                          Position == "RB" & Pos_rank <=  2 ~ 0 ,
+                          Position == "WR" & Pos_rank <=  3 ~ 0 ,
+                          Position == "TE" & Pos_rank  == 1 ~ 0 ,
+                          TRUE ~ DK  )   ,   Flex_Rank = min_rank(-Flex_Score))   %>% select(-Flex_Score) %>% ungroup() %>% 
+mutate(Score = case_when(Position == "QB" & Pos_rank == 1 ~ DK ,
+                          Position == "RB" & Pos_rank <=  2 ~ DK ,
+                          Position == "WR" & Pos_rank <=  3 ~ DK ,
+                          Position == "TE" & Pos_rank  == 1 ~ DK ,
+                          #FLex
+                          Flex_Rank == 1 ~ DK,
+                          TRUE ~ 0  ))  %>% select(-Flex_Rank)
+
+
+
+Teams <- Scores %>% group_by(Draft,  Week) %>%  summarize(Points = sum(Score)  ) %>%  ungroup() %>% group_by(Draft , Week) %>% 
+  mutate( Week_Rank = min_rank(-Points)) %>%  ungroup() %>% group_by(Draft) %>% 
+  mutate(Total_Points = sum(Points)) %>% ungroup()  %>%  group_by(Draft) %>% 
+  mutate( Rank = dense_rank(-Total_Points)) %>%  ungroup()
+
+
+
+Totals <-  Teams %>% group_by(Draft) %>%
+  summarise(Total_Points = sum(Points)) 
+
+
+# 
+# %>% ungroup()  %>%  group_by(Draft) %>% 
+#   mutate( Rank = dense_rank(-Total_Points)) %>% ungroup()
+
+```
+
+
+####################
+
+```{r , warning=FALSE}
+
+
+library(tidyverse)
+library(fs)
+
+
+
+###  $20 dollar
+
+file_paths <- fs::dir_ls("~/Desktop/BestBall/Data/2020/DK/20 Dollar")
+
+directory_that_holds_files <- "~/Desktop/BestBall/Data/2020/DK/20 Dollar"
+
+dk_list_20  <- file_paths %>%
+    map(function (path) {
+        read_csv(path ,  col_types = cols(
+      `%Drafted` = col_skip(),
+      #   EntryId = col_skip(),
+      FPTS = col_skip(),
+      Player = col_skip(),
+      Points = col_skip(),
+      Rank = col_skip(),
+      `Roster Position` = col_skip(),
+      TimeRemaining = col_skip(),
+      X7 = col_skip()
+    )
+  ) %>%  filter(!is.na(Lineup)) %>%
+  separate(
+    col = Lineup,
+    into = paste0("Player", 1:21)  ,
+    sep = ("QB|RB|WR|TE|FLEX|BN")
+  ) %>%  select(-Player1)  %>%
+  pivot_longer(cols = Player2:Player21 , values_to = "Player") %>% mutate(Player = str_trim(Player)) %>%
+  select(-name) %>%  mutate(
+    pj = Player %>% str_replace_all("[^[:alnum:]]", " ")     %>% str_replace_all("[ ]+", "") %>%
+      str_replace_all("(-)|(Jr)|(III)|(II)|(IV)|(V)", "") %>% str_trim() %>%  str_to_lower())
+    })
+
+
+dk_tbl_20 <- dk_list_20 %>% set_names(file_paths) %>%  bind_rows(.id = "Contest_ID") %>% mutate( Contest =  str_sub(Contest_ID  , - 40 , -32)  , 
+          Contest_ID =  str_sub(Contest_ID  , - 12 , -5)    , Exposure = 20) 
+
+
+
+
+###  $3 dollar
+
+file_paths <- fs::dir_ls("~/Desktop/BestBall/Data/2020/DK/3 Dollar")
+
+directory_that_holds_files <- "~/Desktop/BestBall/Data/2020/DK/3 Dollar"
+
+dk_list_3  <- file_paths %>%
+    map(function (path) {
+        read_csv(path ,  col_types = cols(
+      `%Drafted` = col_skip(),
+      #   EntryId = col_skip(),
+      FPTS = col_skip(),
+      Player = col_skip(),
+      Points = col_skip(),
+      Rank = col_skip(),
+      `Roster Position` = col_skip(),
+      TimeRemaining = col_skip(),
+      X7 = col_skip()
+    )
+  ) %>%  filter(!is.na(Lineup)) %>%
+  separate(
+    col = Lineup,
+    into = paste0("Player", 1:21)  ,
+    sep = ("QB|RB|WR|TE|FLEX|BN")
+  ) %>%  select(-Player1)  %>%
+  pivot_longer(cols = Player2:Player21 , values_to = "Player") %>% mutate(Player = str_trim(Player)) %>%
+  select(-name) %>%  mutate(
+    pj = Player %>% str_replace_all("[^[:alnum:]]", " ")     %>% str_replace_all("[ ]+", "") %>%
+      str_replace_all("(-)|(Jr)|(III)|(II)|(IV)|(V)", "") %>% str_trim() %>%  str_to_lower())
+    })
+
+
+dk_tbl_3 <- dk_list_3 %>% set_names(file_paths) %>%  bind_rows(.id = "Contest_ID") %>% mutate( Contest =  str_sub(Contest_ID  , - 39 , -32)  , 
+   Contest_ID =  str_sub(Contest_ID  , - 12 , -5)   , Exposure = 3)
+
+
+dk_tbl <- dk_tbl_20 %>%  bind_rows(dk_tbl_3) %>%  
+  mutate(Player = case_when(Player == "Christopher Herndon" ~ "Chris Herndon"   , Player ==  "Scotty Miller"  ~ "Scott Miller", TRUE ~ Player))
+
+remove(dk_tbl_20)
+remove(dk_tbl_3)
+
+###########
+
+# Bring in Weekly scoring data
+
+week1_2020 <-
+  read_csv(
+    "~/Desktop/BestBall/Data/Weekly_1_16/2020/NFLstats_FantasyScoring_202001-202001.csv",
+    col_types = cols(
+      FFPC = col_skip(),
+      GMs = col_skip(),
+      PPR = col_skip(),
+      SIXPT = col_skip(),
+      STD = col_skip()
+    )
+  )   %>%  mutate(
+    pj = Player %>% str_replace_all("[^[:alnum:]]", " ")     %>% str_replace_all("[ ]+", "") %>%  str_replace_all("(-)|(Jr)|(III)|(II)|(IV)|(V)", "") %>% str_trim() %>%  str_to_lower()
+  )  %>%  select(-Player) %>%  mutate(Week = 1)
+
+
+
+week2_2020 <-
+  read_csv(
+    "~/Desktop/BestBall/Data/Weekly_1_16/2020/NFLstats_FantasyScoring_202002-202002.csv",
+    col_types = cols(
+      FFPC = col_skip(),
+      GMs = col_skip(),
+      PPR = col_skip(),
+      SIXPT = col_skip(),
+      STD = col_skip()
+    )
+  )   %>%  mutate(
+    pj = Player %>% str_replace_all("[^[:alnum:]]", " ")     %>% str_replace_all("[ ]+", "") %>%  str_replace_all("(-)|(Jr)|(III)|(II)|(IV)|(V)", "") %>% str_trim() %>%  str_to_lower()
+  ) %>%  select(-Player) %>%  mutate(Week = 2)
+
+
+
+week3_2020 <-
+  read_csv(
+    "~/Desktop/BestBall/Data/Weekly_1_16/2020/NFLstats_FantasyScoring_202003-202003.csv",
+    col_types = cols(
+      FFPC = col_skip(),
+      GMs = col_skip(),
+      PPR = col_skip(),
+      SIXPT = col_skip(),
+      STD = col_skip()
+    )
+  )   %>%  mutate(
+    pj = Player %>% str_replace_all("[^[:alnum:]]", " ")     %>% str_replace_all("[ ]+", "") %>%  str_replace_all("(-)|(Jr)|(III)|(II)|(IV)|(V)", "") %>% str_trim() %>%  str_to_lower()
+  ) %>%  select(-Player) %>%  mutate(Week = 3)
+
+
+
+
+tog <- dk_tbl %>%  left_join(week1_2020 , by =  "pj") %>%  mutate(Week = 1) %>% mutate_all(~replace(., is.na(.), 0)) %>% select(-pj)
+
+
+tog2  <-   dk_tbl %>%  left_join(week2_2020 , by =  "pj") %>%  mutate(Week = 2)%>% mutate_all(~replace(., is.na(.), 0)) %>% select(-pj)
+
+
+tog3  <-   dk_tbl %>%  left_join(week3_2020 , by =  "pj") %>%  mutate(Week = 3)  %>% mutate_all(~replace(., is.na(.), 0)) %>% select(-pj)
+
+track <- tog %>% bind_rows(tog2) %>%  bind_rows(tog3) %>% 
+  filter(Team != 0)
+
+  
+# calculate weekly score for teams 
+
+
+Scores <- track %>%  group_by(Contest_ID  , EntryId ,Week, Pos) %>% mutate(Pos_rank = min_rank(-DK)) %>% ungroup() %>% group_by(Contest_ID   , EntryId , Week) %>% 
+  mutate(Flex_Score = case_when(Pos == "QB"  ~ 0 ,
+                          Pos == "RB" & Pos_rank <=  2 ~ 0 ,
+                          Pos == "WR" & Pos_rank <=  3 ~ 0 ,
+                          Pos == "TE" & Pos_rank  == 1 ~ 0 ,
+                          TRUE ~ DK  )   ,   Flex_Rank = min_rank(-Flex_Score))   %>% select(-Flex_Score) %>% ungroup() %>% 
+mutate(Score = case_when(Pos == "QB" & Pos_rank == 1 ~ DK ,
+                          Pos == "RB" & Pos_rank <=  2 ~ DK ,
+                          Pos == "WR" & Pos_rank <=  3 ~ DK ,
+                          Pos == "TE" & Pos_rank  == 1 ~ DK ,
+                          #FLex
+                          Flex_Rank == 1 ~ DK,
+                          TRUE ~ 0  ))  %>% select(-Flex_Rank)
+
+
+
+Teams <- Scores %>% group_by(Contest, Contest_ID  ,EntryId, EntryName, Week) %>%  summarize(Points = sum(Score)  ) %>% 
+  ungroup() %>% group_by(Contest_ID , Week) %>% 
+  mutate( Week_Rank = min_rank(-Points)) %>%  ungroup() %>% group_by(Contest_ID  ,EntryId , EntryName) %>% 
+  mutate(Total_Points = sum(Points)) %>% ungroup()  %>%  group_by(Contest_ID) %>% 
+  mutate( Rank = dense_rank(-Total_Points)) %>%  ungroup()
+
+
+
+Totals <-  Teams %>% group_by(Contest , Contest_ID  ,EntryId, EntryName) %>%
+  summarise(Total_Points = sum(Points)) %>% ungroup()  %>%  group_by(Contest_ID) %>% 
+  mutate( Rank = dense_rank(-Total_Points)) %>% ungroup()
+
+
+mine <-  Totals %>% filter(EntryName ==	"footballman55")
+
+
+```
+
+
+
+
+```{r}
+Totals %>% filter(EntryName ==	"footballman55") %>%  ggplot(aes(x= Total_Points , fill = as.factor(Rank) )) + geom_histogram() + facet_grid(vars(Contest), scales = "free") + scale_color_tq( ) + theme_tq() 
+
+
+
+ Totals %>% filter(EntryName ==	"footballman55") %>%  ggplot(aes(x= Rank , color = Total_Points ) ) + 
+   geom_histogram() + facet_grid(vars(Contest) , scales = "free") + scale_color_tq( ) + theme_tq() + scale_x_continuous(breaks =  seq(0,12,1))
+
+ 
+ 
+ 
+#  
+# Totals %>%  ggplot(aes(x=Total_Points  , fill = as.factor(Rank)))  + geom_histogram(alpha = 0.6)  + 
+#   labs(title = "Draftkings Bestball Score Distribution") + scale_color_tq( ) + theme_tq() + facet_grid(rows = vars(Contest) , scales = "free") +
+#   geom_vline( data =  Totals %>%  group_by(Contest ) %>%  summarise(Points = mean(Total_Points) ) , aes(xintercept = Total_Points) ,linetype="dashed" )
+```
+
+
+```{r}
+
+everyone_summary <- Totals %>% group_by(EntryName)  %>% summarise(Avg_Score = round(mean(Total_Points),1) , enteries = n())
+
+
+
+
+everyone_summary  %>% filter(enteries > 5) %>%  filter(EntryName != "footballman55" ) %>%
+  ggplot(aes(x = enteries , y = reorder(EntryName,  enteries ) ,   label = Avg_Score)) + geom_col() + theme_tq() + 
+  scale_color_tq() + labs(title = "DK Opponents Faced"  , y = "Contestant")   + scale_x_continuous() + labs(fill = "") + geom_label(size = 3)
+
+
+
+
+everyone_summary  %>% filter(enteries > 5) %>% mutate(me = ifelse(EntryName == "footballman55" , "Me" , "Opponent"))  %>% 
+  ggplot(aes(x = Avg_Score , y = reorder(EntryName,  Avg_Score  ), fill = me , label= enteries)) + geom_col() + theme_tq() + 
+  scale_color_tq() + labs(title = "DK Opponents Faced"  , y = "Contestant"  ,  x = "Average Score")    + labs(fill = ""  , color = "") + 
+  geom_label(size = 2.4) +
+  theme_tq() + 
+  scale_color_tq() + theme(legend.position='none')
+
+
+```
+
+
+
+
+
+#  players
+
+
+
+```{r}
+
+rosters <- track %>%  group_by(Contest , Contest_ID , EntryId , EntryName , Player , Exposure , Team , Pos) %>%  count()
+
+
+DK_Ownership <- rosters %>%  mutate(me = ifelse(EntryName == "footballman55" , "Me" , "Opponent")) %>% #filter(EntryName == "footballman55") %>% 
+  mutate( QB  = case_when( str_detect(Pos , "QB" ) ~ 1 , TRUE ~0     ) ) %>%  group_by(Team, Contest_ID , EntryName) %>% 
+  mutate(Teammates =  n() , With_QB   = sum(QB) ) %>% ungroup() %>%  mutate(`With QB` = ifelse(With_QB > 0 ,"Yes","No") )   %>% mutate(Teammates = Teammates -1) %>% 
+  mutate(  Stacked = case_when (   QB * Teammates   > 0.5  ~ "Stacked"  ,   QB != 1 & With_QB ==1 ~ "Stacked"  , TRUE ~ "Not Stacked"    ) )%>%  mutate(Stacked = as.factor(Stacked))
+
+
+DK_Ownership_Static  <- DK_Ownership   %>%  filter(EntryName == "footballman55") %>%  group_by(Team,  EntryName , Pos , Player)  %>%  
+  summarise (  Times_Drafted = n() ,
+              Exposure = sum(Exposure)  ,   Avg_Teamates = (mean(Teammates)  ) %>%  round(1)  , With_QB_Rate  = mean(With_QB) %>%  
+                round(1) )%>% ungroup()  
+
+
+```
+
+
+
+
+```{r}
+
+
+
+stack <- DK_Ownership %>% #mutate(Teammates = Teammates -1) %>% 
+  mutate( Stack =  Teammates * QB  , Stacked = ifelse(QB * Teammates  > 0.5 , 1 ,0)) %>%  group_by(Contest_ID , EntryName , me) %>%  summarise(Stacks = sum(Stacked)  , Stacked_players = sum(Stack)) %>% 
+  ungroup() %>%  mutate(`Stacks on team` = as.factor(Stacks)   , `Stacked Players` = as.factor(Stacked_players))
+
+stack %>% ggplot(aes(x= Stacks)) + geom_histogram() + facet_grid(  rows = vars(me) , scales = "free") + labs(title = "DK Stacking")
+
+
+```
+
+
+
+#  Incredibly similar distributions of stacking
+
+```{r}
+
+stack %>% ggplot(aes(x= Stacked_players , fill= `Stacks on team`)) + geom_histogram() + labs(title = "DK Stacking") + theme_tq() + scale_color_tq() + facet_grid(  rows = vars(me) , scales = "free")
+
+
+stack  %>%   ggplot(aes(x= Stacks , fill= `Stacked Players`)) + geom_histogram() + labs(title = "DK Stacking") + theme_tq() + scale_color_tq() + facet_grid(  rows = vars(me) , scales = "free")
+
+
+stack %>% ggplot(aes(x= Stacked_players , fill= `Stacks on team`)) + geom_histogram() + facet_wrap(~Stacks) + 
+  labs(title = "Stacked Players by number of stacks") + theme(legend.position="none")  
+
+```
+
+
+
+
+
+
+```{r}
+
+DK_Ownership_Static %>% filter(Pos == "QB")  %>%    select( -Pos , -With_QB_Rate) %>%   reactable( columns = list(
+  Team = colDef(minWidth = 50)  ,
+  Exposure = colDef(minWidth = 75 , format = colFormat(
+    prefix = "$",
+    separators = TRUE,
+    digits = 0))
+)  ,
+style = list(fontFamily = "Work Sans, sans-serif", fontSize = "12px"),fullWidth = TRUE,
+width = "auto"   , defaultPageSize = 30
+)
+
+```
+
+
+
+
+```{r}
+
+DK_Ownership_Static  %>%    select( -Pos , -With_QB_Rate) %>%   reactable( columns = list(
+  Team = colDef(minWidth = 50)  ,
+  Exposure = colDef(minWidth = 75 , format = colFormat(
+    prefix = "$",
+    separators = TRUE,
+    digits = 0))
+)  ,
+style = list(fontFamily = "Work Sans, sans-serif", fontSize = "12px"),fullWidth = TRUE,
+width = "auto"   ,  filterable = TRUE  , searchable = TRUE , defaultPageSize = 30
+)
+
+
+
+```
+
+
+
+
+```{r}
+ DK_Ownership %>% filter(Pos =="QB") %>% group_by(Player, Stacked ) %>%  
+  summarise(Exposure = sum(Exposure)) %>% #ungroup() %>% 
+  ggplot(aes(x = Exposure , y = reorder(Player,  Exposure ), fill = Stacked)) + geom_col() + theme_tq() + 
+  scale_color_tq() + labs(title = "DK QB Exposure"  , y = "Quarterback")   + scale_x_continuous(labels = dollar) + labs(fill = "") 
+
+
+
+ DK_Ownership %>% filter(Pos =="QB") %>% group_by(Player, Stacked  , me ) %>%  
+  summarise(Exposure = sum(Exposure)) %>% #ungroup() %>% 
+  ggplot(aes(x = Exposure , y = reorder(Player,  Exposure ), fill = Stacked)) + geom_col() + theme_tq() + 
+  scale_color_tq() + labs(title = "DK QB Exposure"  , y = "Quarterback")   + scale_x_continuous(labels = dollar) + labs(fill = "") + facet_grid(  rows = vars(me) , vars(Stacked) , scales = "free")
+
+
+```
+
+
+
+```{r}
+stack %>%  left_join(Totals %>%
+            select(Contest_ID , EntryName, Total_Points,Rank) , by = c("Contest_ID"  , "EntryName"))%>% group_by(me) %>%  #filter(EntryName == "footballman55") %>% 
+  ggplot(aes(x= Stacks  , y = Total_Points , color = me)) + geom_point() + geom_smooth() + facet_grid(cols = vars(me))
+
+
+stack %>%  left_join(Totals %>%
+            select(Contest_ID , EntryName, Total_Points,Rank) , by = c("Contest_ID"  , "EntryName"))%>% group_by(me) %>%  #filter(EntryName == "footballman55") %>% 
+  ggplot(aes(x= Stacks  , y = Rank , color = me)) + geom_point() + geom_smooth() + facet_grid(cols = vars(me))
+
+
+
+stack %>%  left_join(Totals %>%
+            select(Contest_ID , EntryName, Total_Points,Rank) , by = c("Contest_ID"  , "EntryName")) %>%   ggplot(aes(x= Rank , fill= as.factor(Stacks))) + geom_histogram() + labs(title = "DK Stacking") + theme_tq() + scale_color_tq() + facet_grid(  rows = vars(me) , scales = "free") + scale_x_continuous(breaks =  seq(0,12,1))
+
+
+
+
+
+
+stack %>%  left_join(Totals %>%
+            select(Contest_ID , EntryName, Total_Points,Rank) , by = c("Contest_ID"  , "EntryName")) %>% filter(EntryName =="footballman55")   %>%   ggplot(aes(x= Rank , fill= as.factor(Stacks))) + geom_histogram() + labs(title = "DK Stacking") + theme_tq() + scale_color_tq() + facet_grid(  rows = vars(me) , scales = "free") + scale_x_continuous(breaks =  seq(0,12,1))
+
+
+
+
+
+stack %>%  left_join(Totals %>%
+            select(Contest_ID , EntryName, Total_Points,Rank) , by = c("Contest_ID"  , "EntryName")) %>%   ggplot(aes(x= Rank , fill= as.factor(Stacks))) + geom_density(alpha = 0.7) + labs(title = "DK Stacking") + theme_tq() + scale_color_tq() + facet_grid(  rows = vars(me) , scales = "free") + scale_x_continuous(breaks =  seq(0,12,1)) 
+
+
+
+
+stack %>%  left_join(Totals    %>% 
+            select(Contest_ID , EntryName, Total_Points,Rank) , by = c("Contest_ID"  , "EntryName")) %>% filter(Stacks < 4 ) %>%    ggplot(aes(x= Rank , fill= as.factor(Stacks))) + geom_density(alpha = 0.7) + labs(title = "DK Stacking") + theme_tq() + scale_color_tq() + facet_grid(  rows = vars(me) , scales = "free") + scale_x_continuous(breaks =  seq(0,12,1)) + facet_grid(rows = vars(Stacks) , vars(me)) + theme(legend.position="none")
+
+
+
+
+stack %>%  left_join(Totals    %>% 
+            select(Contest_ID , EntryName, Total_Points,Rank) , by = c("Contest_ID"  , "EntryName")) %>% filter(Stacks < 4 , EntryName == "footballman55") %>%    ggplot(aes(x= Rank , fill= as.factor(Stacks))) + geom_histogram(alpha = 0.7) + labs(title = "DK Stacking") + theme_tq() + scale_color_tq() + facet_grid(  rows = vars(me) , scales = "free") + scale_x_continuous(breaks =  seq(0,12,1)) + facet_grid(rows = vars(Stacks) , vars(me) , scales = "free") + theme(legend.position="none")
+
+
+
+
+
+
+
+stack %>%  left_join(Totals    %>% 
+            select(Contest_ID , EntryName, Total_Points,Rank) , by = c("Contest_ID"  , "EntryName")) %>% filter(Stacks < 4 , EntryName == "footballman55") %>%    ggplot(aes(x= Total_Points , fill= as.factor(Stacks))) + geom_histogram(alpha = 0.7) + labs(title = "DK Stacking") + theme_tq() + scale_color_tq() + facet_grid(  rows = vars(me) , scales = "free")  + facet_grid(rows = vars(Stacks) , vars(me) , scales = "free") + theme(legend.position="none")
+
+
+
+
+
+
+################
+stack %>%  left_join(Totals    %>% 
+            select(Contest_ID , EntryName, Total_Points,Rank) , by = c("Contest_ID"  , "EntryName")) %>% filter(Stacks < 4 , EntryName == "footballman55") %>%    ggplot(aes(x= Total_Points , fill= as.factor(`Stacked Players`))) + geom_histogram(alpha = 0.7) + labs(title = "DK Stacking") + theme_tq() + scale_color_tq() + facet_grid(  rows = vars(me) , scales = "free")  + facet_grid(rows = vars(Stacks) , vars(me) , scales = "free")  + theme(legend.position="none")
+
+
+#####  label 
+stack %>%  left_join(Totals    %>% 
+            select(Contest_ID , EntryName, Total_Points,Rank) , by = c("Contest_ID"  , "EntryName")) %>% filter(Stacks < 4 , EntryName == "footballman55") %>%    ggplot(aes(x= Total_Points , fill= as.factor(`Stacked Players`)  , label = Stacked_players ) ) + geom_histogram(alpha = 0.7) + labs(title = "DK Stacking") + theme_tq() + scale_color_tq() + facet_grid(  rows = vars(me) , scales = "free")  + facet_grid(rows = vars(Stacks) , vars(me) , scales = "free")  + theme(legend.position="none") 
+
+
+
+
+
+stack_plot <- stack %>%  left_join(Totals    %>% 
+            select(Contest_ID , EntryName, Total_Points,Rank) , by = c("Contest_ID"  , "EntryName")) %>% filter(Stacks < 4 , EntryName == "footballman55") %>%    ggplot(aes(x= Total_Points , fill= as.factor(`Stacked Players`))) + geom_histogram(alpha = 0.7) + labs(title = "DK Stacking") + theme_tq() + scale_color_tq() + facet_grid(  rows = vars(me) , scales = "free")  + facet_grid(rows = vars(Stacks) , vars(me) , scales = "free")  + theme(legend.position="none")
+
+
+plotly::ggplotly(stack_plot)
+
+######################3
+
+
+
+stack %>%  left_join(Totals %>%
+            select(Contest_ID , EntryName, Total_Points,Rank) , by = c("Contest_ID"  , "EntryName")) %>%   ggplot(aes(x= Rank , color = me )) +  geom_density() + labs(title = "Rank vs. Competition") + theme_tq() + scale_color_tq()  + scale_x_continuous(breaks =  seq(0,12,1))
+
+
+
+
+stack %>%  left_join(Totals %>%
+            select(Contest_ID , EntryName, Total_Points,Rank) , by = c("Contest_ID"  , "EntryName")) %>%   ggplot(aes(x= Total_Points , color = me )) +  geom_density() + labs(title = "Score vs. Competition") + theme_tq() + scale_color_tq()  
+
+
+
+```
+
+
+
+
+
+#  smuuary
+
+```{r}
+
+
+
+# worked after week 1, week 2 they changed
+
+dk  <- read_csv("~/Desktop/BestBall/Data/2020/DK/draftkings-contest-entry-history.csv") %>% 
+  filter(str_detect(Entry, "Best Ball"))  %>% 
+  mutate(Tournament = case_when(  str_detect(Entry, "3M Millionaire") ~ "$3M Millionaire" ,str_detect(Entry, "555") ~ "$555k" ,
+                         str_detect(Entry  , "W2 Special" ) ~ "Week_2_Start"    ,  TRUE ~ NA_character_  ))  %>% 
+ # filter(Tournament != "Other")   %>%  
+  mutate( Slow =       case_when( str_detect(Entry, "Slow") ~ "Slow" , TRUE ~ "Live"    )   ,  Place = as.factor(Place)) %>% 
+  arrange(Contest_Key ,  Contest_Date_EST) %>%  fill(Tournament , .direction = "down")  %>%  filter(!is.na(Tournament)  , !str_detect(Entry, "Sit"))  
+
+
+
+
+look <- dk %>%  count(Entry, Tournament)
+look <- dk %>%  count(Contest_Key)
+
+look <- dk %>%  count(Entry_Key)
+
+dk %>%  ggplot(aes(x=Points  , fill = Place))  + geom_histogram(alpha = 0.6)  + 
+  labs(title = "Draftkings Bestball Score Distribution") + scale_color_tq( ) + theme_tq() + facet_grid(rows = vars(Tournament)) +
+  geom_vline( data =  dk %>%  group_by(Tournament) %>%  summarise(Points = mean(Points)) , aes(xintercept = Points) ,linetype="dashed" )
+
+
+dk %>%  ggplot(aes(x=Points  , fill = Place))  + geom_histogram(alpha = 0.6)  + 
+  labs(title = "Draftkings Bestball Score Distribution")+
+  geom_vline( data =  dk %>%  group_by(Slow) %>%  summarise(Points = mean(Points)) , aes(xintercept = Points) ,linetype="dashed" ) + scale_color_tq( ) + theme_tq() + facet_grid(rows = vars(Slow) , scales = "free")
+
+
+
+
+
+dk %>%  ggplot(aes(x=Points  , fill = Place))  + geom_histogram(alpha = 0.8)  + 
+  labs(title = "Draftkings Bestball Score Distribution") +
+  geom_vline( data =  dk %>%  group_by(Tournament,Slow) %>%  summarise(Points = mean(Points)) , aes(xintercept = Points) ,linetype="dashed" )+ scale_color_tq( ) + theme_tq() + facet_grid(rows = vars(Slow) , vars(Tournament), scales = "free") 
+
+
+dk %>%    group_by(Entry) %>%  summarise(min  = min(Points)   , max_p = max(Points)   , average = mean(Points)    ) %>%  reactable()
+
+
+```
+
+
+
+
+
+
+#  Dk
 
 
 
@@ -222,7 +834,7 @@ team
 Team <-  Underdog_Ownership %>% filter(Position =="QB") %>% group_by(Player, Stacked) %>%  
   summarise(Exposure = sum(Entry_Fee)) %>% # ungroup() %>% 
   ggplot(aes(x = Exposure , y = reorder(Player,  Exposure ), fill = Stacked)) + geom_col() + theme_tq() + 
-  scale_color_tq() + labs(title = "Underdog QB Exposure"  , y = "Quarterback")   + scale_x_continuous(labels = dollar)
+  scale_color_tq() + labs(title = "Underdog QB Exposure"  , y = "Quarterback")   + scale_x_continuous(labels = dollar) + labs(fill = "")
 
 Team
 ```
@@ -239,8 +851,44 @@ Rankings_2016 <- read_csv("~/Desktop/BestBall/Data/Fantasy_Pros_Ranks/FantasyPro
 Rankings_2017 <- read_csv("~/Desktop/BestBall/Data/Fantasy_Pros_Ranks/FantasyPros_2017_Draft_Overall_Rankings.csv") %>%  mutate(Season = 2017)
 Rankings_2018 <- read_csv("~/Desktop/BestBall/Data/Fantasy_Pros_Ranks/FantasyPros_2018_Draft_Overall_Rankings.csv") %>%  mutate(Season = 2018)
 Rankings_2019 <- read_csv("~/Desktop/BestBall/Data/Fantasy_Pros_Ranks/FantasyPros_2019_Draft_Overall_Rankings.csv") %>%  mutate(Season = 2019)
-Rankings_2020 <- read_csv("~/Desktop/BestBall/Data/Fantasy_Pros_Ranks/FantasyPros_2019_Draft_Overall_Rankings.csv") %>%  mutate(Season = 2020)
+Rankings_2020 <- read_csv("~/Desktop/BestBall/Data/Fantasy_Pros_Ranks/FantasyPros_2020_Draft_Overall_Rankings.csv") %>%  mutate(Season = 2020)
+
+
+
+Rankings <- Rankings_2020 %>%  bind_rows(Rankings_2019 , Rankings_2018 , Rankings_2017 , Rankings_2016) %>%  select(Rank, Overall , ADP , Season)  #  Pos,
+
+
+remove(Rankings_2020)
+remove(Rankings_2019)
+remove(Rankings_2018)
+remove(Rankings_2017)
+remove(Rankings_2016)
+```
+
+
+
+
+
+
+```{r}
+
+
+ASA_Data <- read_csv("~/Desktop/BestBall/Data/ASA NFL Offense Raw Data.csv", 
+    col_types = cols(Date = col_date(format = "%Y-%m-%d")))
+
+Points_Data <- ASA_Data %>%   filter( Pos %in% c("QB" , "RB"  , "WR"  ,  "TE"))   %>%  select(  Player:Wind , `Rush Att`, `Rush Yds` , `Rush TD` , `Rush Lng` , `Rec Tgt` , `Rec Rec` , `Rec Yds` , `Rec TD`,`Rec Lng` , Fmb , FL, `2PT`, `Kick TD` , `Punt TD` , `Off Num` , `Off Pct`  , DKSalary , FDSalary , DK_Total_FP , FD_Total_FP , YH_Total_FP)
+
+
+
+
+Joined <- Points_Data %>%  # select(Player) %>%  
+  left_join(Rankings  , by = c("Player" =  "Overall"   , "Year" = "Season"))
+
+
+
 
 ```
+
+
 
 

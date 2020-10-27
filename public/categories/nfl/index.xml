@@ -6,10 +6,19 @@
     <description>Recent content in NFL on A Hugo website</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Thu, 10 Sep 2020 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Fri, 02 Oct 2020 00:00:00 +0000</lastBuildDate>
     
 	<atom:link href="/categories/nfl/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Correlations for best ball</title>
+      <link>/2020/10/02/correlations-for-best-ball/</link>
+      <pubDate>Fri, 02 Oct 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/2020/10/02/correlations-for-best-ball/</guid>
+      <description></description>
+    </item>
     
     <item>
       <title>Bestball - Fine Line</title>
@@ -26,7 +35,7 @@
       <pubDate>Tue, 01 Sep 2020 00:00:00 +0000</pubDate>
       
       <guid>/2020/09/01/ranks-for-different-contests/</guid>
-      <description>1 players 2 Incredibly similar distributions of stacking 3 smuuary 4 Dk 5    library(tidyverse) library(lubridate) library(plotly) library(tidyquant) library(scales) library(reactable) options(scipen = 99999) library(crosstalk) Underdog_Ownership &amp;lt;- Underdog_Ownership &amp;lt;- read_csv(&amp;quot;~/Desktop/BestBall/Data/2020/Underdog Ownership.csv&amp;quot;) Underdog_Ownership &amp;lt;- Underdog_Ownership %&amp;gt;% filter(`Draft Size` &amp;gt; 11) %&amp;gt;% mutate(Date = as_date(`Picked At`) , Player = str_c(`First Name` , &amp;quot; &amp;quot; , `Last Name`) , Entry_Fee = case_when( `Draft Entry Fee` &amp;gt; 0 ~ `Draft Entry Fee` , TRUE ~ `Tournament Entry Fee`) , temp_weight_adp = `Pick Number` * Entry_Fee) %&amp;gt;% mutate(Player = case_when(Player == &amp;quot;Christopher Herndon&amp;quot; ~ &amp;quot;Chris Herndon&amp;quot; , TRUE ~ Player)) %&amp;gt;% select(Date , Player, `Pick Number` , Entry_Fee , Team, Position , `Draft Size` , Draft , temp_weight_adp) %&amp;gt;% mutate( QB = case_when( str_detect(Position , &amp;quot;QB&amp;quot; ) ~ 1 , TRUE ~0 ) ) %&amp;gt;% group_by(Team, Draft) %&amp;gt;% mutate(Teammates = n() , With_QB = sum(QB) ) %&amp;gt;% ungroup() %&amp;gt;% mutate(`With QB` = ifelse(With_QB &amp;gt; 0 ,&amp;quot;Yes&amp;quot;,&amp;quot;No&amp;quot;) ) %&amp;gt;% mutate( pj = Player %&amp;gt;% str_replace_all(&amp;quot;[^[:alnum:]]&amp;quot;, &amp;quot; &amp;quot;) %&amp;gt;% str_replace_all(&amp;quot;[ ]+&amp;quot;, &amp;quot;&amp;quot;) %&amp;gt;% str_replace_all(&amp;quot;(-)|(Jr)|(III)|(II)|(IV)|(V)&amp;quot;, &amp;quot;&amp;quot;) %&amp;gt;% str_trim() %&amp;gt;% str_to_lower()) Underdog_Ownership_Static &amp;lt;- Underdog_Ownership %&amp;gt;% group_by(Team, Position, Player) %&amp;gt;% summarise ( ADP = mean(`Pick Number`) %&amp;gt;% round(1) , Times_Drafted = n() , Earliest = min(`Pick Number`) , Latest = max(`Pick Number`) , Range = Latest - Earliest , Exposure = sum(Entry_Fee) , Avg_Teamates = (mean(Teammates) - 1 ) %&amp;gt;% round(1) , With_QB_Rate = mean(With_QB) %&amp;gt;% round(1) , Weighted_ADP = ( sum(temp_weight_adp )/ sum(Exposure )) %&amp;gt;% round(1))%&amp;gt;% ungroup() %&amp;gt;% select( - Earliest , - Latest , -ADP ) %&amp;gt;% relocate(Range, .</description>
+      <description>1 cumulative better 2 add shiny filter by player, etc 3 this would make for good shiny funtionality 4 players 5 Incredibly similar distributions of stacking 6 smuuary 7 Dk 8    library(tidyverse) library(lubridate) library(plotly) library(tidyquant) library(scales) library(reactable) options(scipen = 99999) 0.1 Underdog players drafted library(crosstalk) Underdog_Ownership &amp;lt;- Underdog_Ownership &amp;lt;- read_csv(&amp;quot;~/Desktop/BestBall/Data/2020/Underdog Ownership.csv&amp;quot;) Underdog_Ownership &amp;lt;- Underdog_Ownership %&amp;gt;% filter(`Draft Size` &amp;gt; 11) %&amp;gt;% mutate(Date = as_date(`Picked At`) , Player = str_c(`First Name` , &amp;quot; &amp;quot; , `Last Name`) , Entry_Fee = case_when( `Draft Entry Fee` &amp;gt; 0 ~ `Draft Entry Fee` , TRUE ~ `Tournament Entry Fee`) , temp_weight_adp = `Pick Number` * Entry_Fee) %&amp;gt;% mutate(Player = case_when(Player == &amp;quot;Christopher Herndon&amp;quot; ~ &amp;quot;Chris Herndon&amp;quot; , TRUE ~ Player)) %&amp;gt;% select(Date , Player, `Pick Number` , Entry_Fee , Team, Position , `Draft Size` , Draft , temp_weight_adp) %&amp;gt;% mutate( QB = case_when( str_detect(Position , &amp;quot;QB&amp;quot; ) ~ 1 , TRUE ~0 ) ) %&amp;gt;% group_by(Team, Draft) %&amp;gt;% mutate(Teammates = n() , With_QB = sum(QB) ) %&amp;gt;% ungroup() %&amp;gt;% mutate(`With QB` = ifelse(With_QB &amp;gt; 0 ,&amp;quot;Yes&amp;quot;,&amp;quot;No&amp;quot;) ) %&amp;gt;% mutate( pj = Player %&amp;gt;% str_replace_all(&amp;quot;[^[:alnum:]]&amp;quot;, &amp;quot; &amp;quot;) %&amp;gt;% str_replace_all(&amp;quot;[ ]+&amp;quot;, &amp;quot;&amp;quot;) %&amp;gt;% str_replace_all(&amp;quot;(-)|(Jr)|(III)|(II)|(IV)|(V)&amp;quot;, &amp;quot;&amp;quot;) %&amp;gt;% str_trim() %&amp;gt;% str_to_lower()) Underdog_Ownership_Static &amp;lt;- Underdog_Ownership %&amp;gt;% group_by(Team, Position, Player) %&amp;gt;% summarise ( ADP = mean(`Pick Number`) %&amp;gt;% round(1) , Times_Drafted = n() , Earliest = min(`Pick Number`) , Latest = max(`Pick Number`) , Range = Latest - Earliest , Exposure = sum(Entry_Fee) , Avg_Teamates = (mean(Teammates) - 1 ) %&amp;gt;% round(1) , With_QB_Rate = mean(With_QB) %&amp;gt;% round(1) , Weighted_ADP = ( sum(temp_weight_adp )/ sum(Exposure )) %&amp;gt;% round(1))%&amp;gt;% ungroup() %&amp;gt;% select( - Earliest , - Latest , -ADP ) %&amp;gt;% relocate(Range, .</description>
     </item>
     
   </channel>

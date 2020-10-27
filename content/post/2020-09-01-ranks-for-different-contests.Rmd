@@ -39,6 +39,8 @@ options(scipen = 99999)
 
 
 
+## Underdog players drafted
+
 
 ```{r}
 
@@ -122,106 +124,145 @@ ggplotly(underdog_shared %>%  ggplot(aes(x = Weighted_ADP, y = Exposure  ,color 
 
 ```
 
+
+
+
+
+
 ###########points
 
 ```{r}
 
 # Bring in Weekly scoring data
 
-week1_2020 <-
-  read_csv(
-    "~/Desktop/BestBall/Data/Weekly_1_16/2020/NFLstats_FantasyScoring_202001-202001.csv",
-    col_types = cols(
-      FFPC = col_skip(),
-      GMs = col_skip(),
-      PPR = col_skip(),
-      SIXPT = col_skip(),
-      STD = col_skip()
-    )
-  )   %>%  mutate(
-    pj = Player %>% str_replace_all("[^[:alnum:]]", " ")     %>% str_replace_all("[ ]+", "") %>%  str_replace_all("(-)|(Jr)|(III)|(II)|(IV)|(V)", "") %>% str_trim() %>%  str_to_lower()
-  )  %>%   mutate(Week = 1) %>%  select(-Player , -Team , -Pos)
+
+######################################3
+#3
+library(tidyverse)
+library(fs)
+library(lubridate)
+library(tidyquant)
+
+file_paths <- fs::dir_ls("~/Desktop/BestBall/Data/Weekly_1_16/2020")
+
+scores_list <- file_paths %>%
+  map(
+    .f = function(path) {
+      read_csv(
+        path,
+        col_types = cols(
+          FFPC = col_skip(),
+          GMs = col_skip(),
+          PPR = col_skip(),
+          SIXPT = col_skip(),
+          STD = col_skip()
+        )
+      )  %>%  mutate(
+        pj = Player %>% str_replace_all("[^[:alnum:]]", " ")     %>% str_replace_all("[ ]+", "") %>%  str_replace_all("(-)|(Jr)|(III)|(II)|(IV)|(V)", "") %>% str_trim() %>%  str_to_lower()
+      )  %>%  mutate(Week = 7) %>%  select(-Player , -Team , -Pos)
+    }
+  ) 
+
+
+# 2
+
+scores_data_tbl <- scores_list %>%  set_names(file_paths) %>%  bind_rows(.id= "file_path") %>% 
+  mutate(Week = str_sub(file_path , -6 , -5) %>% as.numeric()) %>% select(-file_path)
 
 
 
-week2_2020 <-
-  read_csv(
-    "~/Desktop/BestBall/Data/Weekly_1_16/2020/NFLstats_FantasyScoring_202002-202002.csv",
-    col_types = cols(
-      FFPC = col_skip(),
-      GMs = col_skip(),
-      PPR = col_skip(),
-      SIXPT = col_skip(),
-      STD = col_skip()
-    )
-  )   %>%  mutate(
-    pj = Player %>% str_replace_all("[^[:alnum:]]", " ")     %>% str_replace_all("[ ]+", "") %>%  str_replace_all("(-)|(Jr)|(III)|(II)|(IV)|(V)", "") %>% str_trim() %>%  str_to_lower()
-  ) %>%  mutate(Week = 2) %>%  select(-Player , -Team , -Pos)
 
 
+track <- Underdog_Ownership %>%  left_join(scores_data_tbl, by =  "pj") %>%  select(-pj)
 
-week3_2020 <-
-  read_csv(
-    "~/Desktop/BestBall/Data/Weekly_1_16/2020/NFLstats_FantasyScoring_202003-202003.csv",
-    col_types = cols(
-      FFPC = col_skip(),
-      GMs = col_skip(),
-      PPR = col_skip(),
-      SIXPT = col_skip(),
-      STD = col_skip()
-    )
-  )   %>%  mutate(
-    pj = Player %>% str_replace_all("[^[:alnum:]]", " ")     %>% str_replace_all("[ ]+", "") %>%  str_replace_all("(-)|(Jr)|(III)|(II)|(IV)|(V)", "") %>% str_trim() %>%  str_to_lower()
-  )  %>%  mutate(Week = 3) %>%  select(-Player , -Team , -Pos)
+#########################################3
 
-
-
-tog <- Underdog_Ownership %>%  left_join(week1_2020 , by =  "pj") %>%  mutate(Week = 1) %>% mutate_if(is.numeric , ~replace(., is.na(.), 0)) %>% select(-pj)
-
-
-tog2  <-   Underdog_Ownership  %>%  left_join(week2_2020 , by =  "pj") %>%  mutate(Week = 2)  %>% mutate_if(is.numeric , ~replace(., is.na(.), 0)) %>% select(-pj)
-
-
-tog3  <-   Underdog_Ownership %>%  left_join(week3_2020 , by =  "pj") %>%  mutate(Week = 3) %>% mutate_if(is.numeric , ~replace(., is.na(.), 0)) %>% select(-pj)
-
-track <- tog %>% bind_rows(tog2) %>%  bind_rows(tog3) 
-
-  
 # calculate weekly score for teams 
 
 
-Scores <- track %>%  group_by(Draft  , Week,Position) %>% mutate(Pos_rank = min_rank(-DK)) %>% ungroup() %>% group_by(Draft  ,  Week) %>% 
+Scores <- track %>%  group_by(Draft  , Week,Position) %>% mutate(Pos_rank = min_rank(-FD)) %>% ungroup() %>% group_by(Draft  ,  Week) %>% 
   mutate(Flex_Score = case_when(Position== "QB"  ~ 0 ,
-                          Position == "RB" & Pos_rank <=  2 ~ 0 ,
-                          Position == "WR" & Pos_rank <=  3 ~ 0 ,
-                          Position == "TE" & Pos_rank  == 1 ~ 0 ,
-                          TRUE ~ DK  )   ,   Flex_Rank = min_rank(-Flex_Score))   %>% select(-Flex_Score) %>% ungroup() %>% 
-mutate(Score = case_when(Position == "QB" & Pos_rank == 1 ~ DK ,
-                          Position == "RB" & Pos_rank <=  2 ~ DK ,
-                          Position == "WR" & Pos_rank <=  3 ~ DK ,
-                          Position == "TE" & Pos_rank  == 1 ~ DK ,
-                          #FLex
-                          Flex_Rank == 1 ~ DK,
-                          TRUE ~ 0  ))  %>% select(-Flex_Rank)
+                                Position == "RB" & Pos_rank <=  2 ~ 0 ,
+                                Position == "WR" & Pos_rank <=  3 ~ 0 ,
+                                Position == "TE" & Pos_rank  == 1 ~ 0 ,
+                                TRUE ~ FD  )   ,   Flex_Rank = min_rank(-Flex_Score))   %>% select(-Flex_Score) %>% ungroup() %>% 
+  mutate(Score = case_when(Position == "QB" & Pos_rank == 1 ~ FD ,
+                           Position == "RB" & Pos_rank <=  2 ~ FD ,
+                           Position == "WR" & Pos_rank <=  3 ~ FD ,
+                           Position == "TE" & Pos_rank  == 1 ~ FD ,
+                           #FLex
+                           Flex_Rank == 1 ~ FD,
+                           TRUE ~ 0  ))  %>% select(-Flex_Rank)
 
 
 
-Teams <- Scores %>% group_by(Draft,  Week) %>%  summarize(Points = sum(Score)  ) %>%  ungroup() %>% group_by(Draft , Week) %>% 
-  mutate( Week_Rank = min_rank(-Points)) %>%  ungroup() %>% group_by(Draft) %>% 
-  mutate(Total_Points = sum(Points)) %>% ungroup()  %>%  group_by(Draft) %>% 
-  mutate( Rank = dense_rank(-Total_Points)) %>%  ungroup()
-
+Teams <- Scores %>% group_by(Draft,  Week) %>%  summarize(Points = sum(Score)  ) %>%  ungroup() %>% group_by(Draft) %>% 
+  mutate(Total_Points = sum(Points)) %>%   mutate(Cumulate_Points = CUMULATIVE_SUM(Points)   ,  Proportion_of_points = Points / Total_Points) %>%  ungroup() %>%  filter(Week > 0)
 
 
 Totals <-  Teams %>% group_by(Draft) %>%
-  summarise(Total_Points = sum(Points)) 
+  summarise(Total_Points = sum(Points))
+```
+
+#  cumulative better
+
+#  add shiny  filter by player, etc 
 
 
-# 
-# %>% ungroup()  %>%  group_by(Draft) %>% 
-#   mutate( Rank = dense_rank(-Total_Points)) %>% ungroup()
+```{r}
+plotly::ggplotly(  Teams %>%  ggplot(aes(x = Week , y = Cumulate_Points  , color = ,  detail = Draft) ) + geom_point() + geom_line(size = 0.2)  )
+```
+
+
+
+
+```{r}
+Teams %>%  ggplot(aes(x = Cumulate_Points  , fill = as.factor(Week))) + geom_histogram(binwidth =  10,position = "dodge2") + facet_wrap(~Week)
+```
+
+
+
+```{r}
+Teams %>%  group_by(Week) %>%  summarise(Average_Score = mean(Points))
+```
+
+
+```{r}
+Teams %>%  ggplot(aes(x = Points  , fill = as.factor(Week))) + geom_density(alpha = 0.6) 
+```
+
+```{r}
+Teams %>%  ggplot(aes(x = Points  , fill = as.factor(Week))) + geom_histogram(binwidth =  10,position = "dodge2") + facet_wrap(~Week)
+```
+
+
+```{r}
+  Teams %>%  ggplot(aes(x = Week , y =  Proportion_of_points , color = ,  detail = Draft) ) + geom_point() + geom_line(size = 0.2)  
+```
+
+
+
+```{r}
+  Teams %>%  ggplot(aes(x = Week , y =  Points , color = ,  detail = Draft) ) + geom_point() + geom_line(size = 0.2)  
+```
+
+
+```{r}
+Players_Underdog <-  Scores %>%  left_join(Teams , by = c("Draft" , "Week")) 
+```
+
+
+
+# this would make for good shiny funtionality
+
+```{r}
+Players_Underdog %>% group_by(Player)  %>%  filter(Week == max(Week)) %>% 
+  filter(Player == "Cam Newton") %>%  
+    # filter(Player == "Saquon Barkley") %>% 
+  ggplot(aes(x= Total_Points)) + geom_histogram()
 
 ```
+
 
 
 ####################
@@ -229,8 +270,6 @@ Totals <-  Teams %>% group_by(Draft) %>%
 ```{r , warning=FALSE}
 
 
-library(tidyverse)
-library(fs)
 
 
 
@@ -317,67 +356,37 @@ remove(dk_tbl_3)
 ###########
 
 # Bring in Weekly scoring data
+################
 
-week1_2020 <-
-  read_csv(
-    "~/Desktop/BestBall/Data/Weekly_1_16/2020/NFLstats_FantasyScoring_202001-202001.csv",
-    col_types = cols(
-      FFPC = col_skip(),
-      GMs = col_skip(),
-      PPR = col_skip(),
-      SIXPT = col_skip(),
-      STD = col_skip()
-    )
-  )   %>%  mutate(
-    pj = Player %>% str_replace_all("[^[:alnum:]]", " ")     %>% str_replace_all("[ ]+", "") %>%  str_replace_all("(-)|(Jr)|(III)|(II)|(IV)|(V)", "") %>% str_trim() %>%  str_to_lower()
-  )  %>%  select(-Player) %>%  mutate(Week = 1)
+file_paths <- fs::dir_ls("~/Desktop/BestBall/Data/Weekly_1_16/2020")
 
-
-
-week2_2020 <-
-  read_csv(
-    "~/Desktop/BestBall/Data/Weekly_1_16/2020/NFLstats_FantasyScoring_202002-202002.csv",
-    col_types = cols(
-      FFPC = col_skip(),
-      GMs = col_skip(),
-      PPR = col_skip(),
-      SIXPT = col_skip(),
-      STD = col_skip()
-    )
-  )   %>%  mutate(
-    pj = Player %>% str_replace_all("[^[:alnum:]]", " ")     %>% str_replace_all("[ ]+", "") %>%  str_replace_all("(-)|(Jr)|(III)|(II)|(IV)|(V)", "") %>% str_trim() %>%  str_to_lower()
-  ) %>%  select(-Player) %>%  mutate(Week = 2)
+scores_list <- file_paths %>%
+  map(
+    .f = function(path) {
+      read_csv(
+        path,
+        col_types = cols(
+          FFPC = col_skip(),
+          GMs = col_skip(),
+          PPR = col_skip(),
+          SIXPT = col_skip(),
+          STD = col_skip()
+        )
+      )  %>%  mutate(
+        pj = Player %>% str_replace_all("[^[:alnum:]]", " ")     %>% str_replace_all("[ ]+", "") %>%  str_replace_all("(-)|(Jr)|(III)|(II)|(IV)|(V)", "") %>% str_trim() %>%  str_to_lower()
+      )  %>%  mutate(Week = 7) %>%  select(-Player  ) # , -Team
+    }
+  ) 
 
 
+# 2
 
-week3_2020 <-
-  read_csv(
-    "~/Desktop/BestBall/Data/Weekly_1_16/2020/NFLstats_FantasyScoring_202003-202003.csv",
-    col_types = cols(
-      FFPC = col_skip(),
-      GMs = col_skip(),
-      PPR = col_skip(),
-      SIXPT = col_skip(),
-      STD = col_skip()
-    )
-  )   %>%  mutate(
-    pj = Player %>% str_replace_all("[^[:alnum:]]", " ")     %>% str_replace_all("[ ]+", "") %>%  str_replace_all("(-)|(Jr)|(III)|(II)|(IV)|(V)", "") %>% str_trim() %>%  str_to_lower()
-  ) %>%  select(-Player) %>%  mutate(Week = 3)
+scores_data_tbl <- scores_list %>%  set_names(file_paths) %>%  bind_rows(.id= "file_path") %>% 
+  mutate(Week = str_sub(file_path , -6 , -5) %>% as.numeric()) %>% select(-file_path)
 
+##############
 
-
-
-tog <- dk_tbl %>%  left_join(week1_2020 , by =  "pj") %>%  mutate(Week = 1) %>% mutate_all(~replace(., is.na(.), 0)) %>% select(-pj)
-
-
-tog2  <-   dk_tbl %>%  left_join(week2_2020 , by =  "pj") %>%  mutate(Week = 2)%>% mutate_all(~replace(., is.na(.), 0)) %>% select(-pj)
-
-
-tog3  <-   dk_tbl %>%  left_join(week3_2020 , by =  "pj") %>%  mutate(Week = 3)  %>% mutate_all(~replace(., is.na(.), 0)) %>% select(-pj)
-
-track <- tog %>% bind_rows(tog2) %>%  bind_rows(tog3) %>% 
-  filter(Team != 0)
-
+track <- dk_tbl %>%  left_join(scores_data_tbl, by =  "pj") %>%  select(-pj)
   
 # calculate weekly score for teams 
 
@@ -402,7 +411,7 @@ Teams <- Scores %>% group_by(Contest, Contest_ID  ,EntryId, EntryName, Week) %>%
   ungroup() %>% group_by(Contest_ID , Week) %>% 
   mutate( Week_Rank = min_rank(-Points)) %>%  ungroup() %>% group_by(Contest_ID  ,EntryId , EntryName) %>% 
   mutate(Total_Points = sum(Points)) %>% ungroup()  %>%  group_by(Contest_ID) %>% 
-  mutate( Rank = dense_rank(-Total_Points)) %>%  ungroup()
+  mutate( Rank = dense_rank(-Total_Points)) %>%  ungroup() %>% group_by(Contest_ID  ,EntryId , EntryName ) %>%   mutate(Cumulate_Points = CUMULATIVE_SUM(Points)   ,  Proportion_of_points = Points / Total_Points)
 
 
 
@@ -411,11 +420,17 @@ Totals <-  Teams %>% group_by(Contest , Contest_ID  ,EntryId, EntryName) %>%
   mutate( Rank = dense_rank(-Total_Points)) %>% ungroup()
 
 
-mine <-  Totals %>% filter(EntryName ==	"footballman55")
+mine <-  Totals %>% filter(EntryName ==	"footballman55")   %>%  ungroup()
 
 
 ```
 
+
+
+
+```{r}
+plotly::ggplotly(Teams %>%  filter(EntryName == "footballman55") %>%  ggplot(aes(x=Week  , y= Cumulate_Points , detail = Contest_ID , color = as.factor(Rank) ))  + geom_point() + geom_line(size = .02))
+```
 
 
 
@@ -891,4 +906,42 @@ Joined <- Points_Data %>%  # select(Player) %>%
 
 
 
+
+```{r}
+library(ggimage)
+```
+
+
+
+```{r}
+library(tidyverse)
+library(nflfastR)
+library(ggimage)
+pbp <- readRDS(url('https://raw.githubusercontent.com/guga31bb/nflfastR-data/master/data/play_by_play_2020.rds')) %>%
+  filter(season_type == 'REG') %>% filter(!is.na(posteam) & (rush == 1 | pass == 1))
+offense <- pbp %>% group_by(posteam) %>% summarise(off_epa = mean(epa, na.rm = TRUE))
+defense <- pbp %>% group_by(defteam) %>% summarise(def_epa = mean(epa, na.rm = TRUE))
+logos <- teams_colors_logos %>% select(team_abbr, team_logo_espn)
+
+offense %>%
+  inner_join(defense, by = c("posteam" = "defteam")) %>%
+  inner_join(logos, by = c("posteam" = "team_abbr")) %>%
+  ggplot(aes(x = off_epa, y = def_epa)) +
+  geom_abline(slope = -1.5, intercept = c(.4, .3, .2, .1, 0, -.1, -.2, -.3), alpha = .2) +
+  geom_hline(aes(yintercept = mean(off_epa)), color = "red", linetype = "dashed") +
+  geom_vline(aes(xintercept = mean(def_epa)), color = "red", linetype = "dashed") +
+  geom_image(aes(image = team_logo_espn), size = 0.05, asp = 16 / 9) +
+  labs(
+    x = "Offense EPA/play",
+    y = "Defense EPA/play",
+    caption = "Data: @nflfastR",
+    title = "2020 NFL Offensive and Defensive EPA per Play"
+  ) +
+  theme_bw() +
+  theme(
+    aspect.ratio = 9 / 16,
+    plot.title = element_text(size = 12, hjust = 0.5, face = "bold")
+  ) +
+  scale_y_reverse()
+```
 
